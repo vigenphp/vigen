@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * This file was published by Vigen (vigenphp/vigen) into your project root
+ * so you can run Vigen the same way you'd run `php artisan` in Laravel:
+ *
+ *   php vigen init
+ *   php vigen chat "Create a user management system"
+ *   php vigen serve
+ *
+ * It's your file now - feel free to customize it. Re-running
+ * `composer update` will not overwrite it if it already exists.
+ */
+
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Vigen\CLI\Application;
+
+$app = new Application(__DIR__);
+exit($app->run($argv));

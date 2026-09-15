@@ -1,0 +1,40 @@
+{
+    "name": "vigenphp/vigen",
+    "version": "0.1.0",
+    "description": "Vigen is a modern PHP framework built around AI-first development and vibe coding. Describe what you want. Vigen builds it.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["php", "framework", "ai", "vibe-coding", "code-generation", "cli", "llm"],
+    "homepage": "https://github.com/vigenphp/vigen",
+    "require": {
+        "php": "^8.2",
+        "composer-plugin-api": "^2.0",
+        "vlucas/phpdotenv": "^5.6",
+        "symfony/console": "^7.0",
+        "guzzlehttp/guzzle": "^7.8",
+        "nikic/php-parser": "^5.0"
+    },
+    "require-dev": {
+        "composer/composer": "^2.7",
+        "phpunit/phpunit": "^11.0",
+        "friendsofphp/php-cs-fixer": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vigen\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Vigen\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/vigen"
+    ],
+    "extra": {
+        "class": "Vigen\\Composer\\VigenPlugin"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

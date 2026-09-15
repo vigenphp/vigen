@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vigen</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; color: #1a1a1a; }
+  header { font-weight: 700; letter-spacing: 0.04em; margin-bottom: 16px; }
+  #log { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-height: 320px; }
+  .step { color: #16a34a; margin: 2px 0; }
+  form { display: flex; gap: 8px; margin-top: 16px; }
+  input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+  button { padding: 10px 16px; border: none; border-radius: 6px; background: #111; color: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+  <header>VIGEN</header>
+  <div id="log"></div>
+  <form id="chat-form">
+    <input id="prompt" type="text" placeholder="Ask Vigen anything..." autocomplete="off" required>
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('prompt');
+    const log = document.getElementById('log');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      log.innerHTML += `<div><strong>${prompt}</strong></div>`;
+      input.value = '';
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const result = await response.json();
+
+      for (const change of result.changes) {
+        log.innerHTML += `<div class="step">✓ ${change.path}</div>`;
+      }
+      log.innerHTML += result.success
+        ? '<div class="step">✓ Validation passed</div>'
+        : '<div style="color:#dc2626">✗ Validation failed</div>';
+      log.scrollTop = log.scrollHeight;
+    });
+  </script>
+</body>
+</html>

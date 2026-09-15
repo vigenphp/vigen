@@ -1,0 +1,26 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Vigen\CLI\Application as CliApplication;
+
+$autoloadPaths = [
+    __DIR__ . '/../vendor/autoload.php',   // installed as a project
+    __DIR__ . '/../../../autoload.php',    // installed as a dependency
+];
+
+foreach ($autoloadPaths as $autoloadPath) {
+    if (file_exists($autoloadPath)) {
+        require $autoloadPath;
+        break;
+    }
+}
+
+if (! class_exists(CliApplication::class)) {
+    fwrite(STDERR, "Vigen: unable to locate the autoloader. Run `composer install`.\n");
+    exit(1);
+}
+
+$app = new CliApplication();
+exit($app->run($argv));
