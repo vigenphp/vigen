@@ -104,6 +104,16 @@ that happens to work locally:
 | Text | `TEXT` | `VARCHAR(255)` / `TEXT` |
 | Timestamp | `TEXT` | `DATETIME` |
 
+The other consequence of writing real SQL is atomicity. **MySQL commits
+implicitly before every `CREATE TABLE`, `ALTER TABLE` and `DROP TABLE`**, so a
+migration is not atomic there. Vigen wraps each migration in a transaction and
+tolerates that implicit commit, but if one migration file contains three
+statements and the third fails, the first two have already been committed and
+stay - and because a failed migration is not recorded, re-running it will fail
+on the table that already exists. Keep each migration to one table on MySQL.
+SQLite and Postgres do support transactional DDL, so there a failed migration
+leaves nothing behind.
+
 ## Models
 
 ```php

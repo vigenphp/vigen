@@ -133,12 +133,28 @@ class Router
         $method = strtoupper($method);
         $path = self::normalise($path);
 
+        $best = null;
+        $bestParams = [];
+
         foreach ($this->routes as $route) {
             if ($route->method !== $method) {
                 continue;
             }
 
             if (preg_match($this->compile($route->uri), $path, $matches) !== 1) {
+                continue;
+            }
+
+            // A literal segment beats a {placeholder} at the first point where
+            // two matching routes disagree; ties keep registration order.
+            //
+            // Without this, `$router->get('/users/{id}')` declared before
+            // `$router->get('/users/create')` - the order a model naturally
+            // writes, and the order generated route files come out in - sends
+            // GET /users/create to show(int $id) with the string "create", which
+            // is a TypeError under strict types. The route was never wrong; the
+            // precedence was.
+            if ($best !== null && ! self::moreSpecificThan($route->uri, $best->uri)) {
                 continue;
             }
 
@@ -150,10 +166,49 @@ class Router
                 }
             }
 
-            return [$route, $params];
+            $best = $route;
+            $bestParams = $params;
         }
 
-        return null;
+        return $best === null ? null : [$best, $bestParams];
+    }
+
+    /**
+     * Whether one route URI is strictly more specific than another that also
+     * matched the same path.
+     *
+     * Two routes can only both match when they differ by a literal against a
+     * placeholder, or by a trailing optional segment - a differing pair of
+     * literals cannot both equal the same path segment. So the first position
+     * where they disagree decides, and a literal wins there.
+     */
+    private static function moreSpecificThan(string $candidate, string $incumbent): bool
+    {
+        $candidateSegments = explode('/', trim($candidate, '/'));
+        $incumbentSegments = explode('/', trim($incumbent, '/'));
+
+        foreach ($candidateSegments as $index => $segment) {
+            $other = $incumbentSegments[$index] ?? null;
+
+            // The candidate has an extra (necessarily optional) segment, which
+            // makes it the less specific of the two.
+            if ($other === null) {
+                return false;
+            }
+
+            if ($other === $segment) {
+                continue;
+            }
+
+            $candidateIsLiteral = ! str_contains($segment, '{');
+            $incumbentIsLiteral = ! str_contains($other, '{');
+
+            if ($candidateIsLiteral !== $incumbentIsLiteral) {
+                return $candidateIsLiteral;
+            }
+        }
+
+        return false;
     }
 
     /**

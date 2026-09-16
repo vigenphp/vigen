@@ -4,6 +4,31 @@ All notable changes to Vigen will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-09-17
+
+Everything here was found by serving a generated application and using it. All
+four are the same shape of bug: the runtime was missing something the generated
+code assumes exists, and nothing in the test suite noticed because the tests
+supplied it themselves.
+
+### Fixed
+
+- **No controller in any project could be loaded.** A Vigen project's `composer.json` has no `"autoload"` section, so nothing ever mapped `App\` to `app/` - and Composer cannot map a namespace it was never told about, however many times `dump-autoload` runs. The file was exactly where it belonged; `class_exists()` simply returned false, and every route in the project died with `A route points at controller [App\Http\Controllers\AuthController], which does not exist. Check the "use" statement in your route file.` - which sends you to the one file that was already correct. `Application` now registers a PSR-4 autoloader for `App\` at boot, so existing projects work on `composer update` alone with no dump-autoload and nothing to re-scaffold. `KernelTest` had been registering its own autoloader "because the generated project's App\ classes live only in the scratch directory" - the test was supplying the piece the framework was missing, which is why the suite passed while no real project could serve a page.
+- **`$request->post()` did not exist.** Generated controllers read submitted form fields with it, so every login and registration attempt was a fatal `Error: Call to undefined method Vigen\Http\Request::post()` - the second request a generated app ever handles. `post()` reads the body only, leaving `input()` to search the body and then the query string; both support dot notation.
+- **`_method` was ignored, so no edit or delete form could reach its route.** An HTML form can only send GET or POST, so generated views post a hidden `_method` field to reach a `put()`/`delete()` route - and nothing read it, so every one of those forms answered 405. `Request::fromGlobals()` now honours `PUT`, `PATCH` and `DELETE` in `_method`, and only on a POST, so a link carrying `?_method=DELETE` cannot turn a safe request into a destructive one.
+- **A `{parameter}` route shadowed a literal route declared after it.** `match()` returned the first registered route, so the natural ordering `$router->get('/users/{id}')` before `$router->get('/users/create')` sent `GET /users/create` to `show(int $id)` with the string `"create"` - a `TypeError` under strict types, on a route that was declared correctly. Matching now prefers a literal segment over a placeholder at the first point where two matching routes differ, and keeps registration order when they are equally specific.
+
+### Added
+
+- `tests/RequestTest.php` and `tests/ApplicationTest.php` - both need no database, so unlike the rest of the suite they run on any PHP build, including one without `pdo_sqlite`. `Request`, `Router` and `KernelTest`'s autoloader are the three places the gaps above hid.
+- `ApiReference` now documents `Request::post()` and the `_method` form field. Both were behaviour a model had already assumed; the prompt had simply never named them.
+
+## [1.0.3] - 2026-09-17
+
+### Fixed
+
+- **Every migration failed on MySQL with "There is no active transaction".** MySQL commits implicitly before every DDL statement, so by the time the wrapper around a migration reached its own `commit()`, the `CREATE TABLE` *inside* that migration had already ended the transaction - and PDO throws "There is no active transaction" when asked to commit one that no longer exists. The migration had in fact run correctly; the bookkeeping around it printed `FAILED` and recorded nothing, so the next `vigen migrate` tried to create the same table again. `Connection::transaction()` now checks `inTransaction()` before committing, exactly as its catch block has always checked before rolling back. SQLite can never show this because its DDL *is* transactional, which is why the entire suite passed while no MySQL project could migrate at all.
+
 ## [1.0.2] - 2026-09-17
 
 ### Fixed

@@ -24,6 +24,9 @@ class Application
 {
     private static ?Application $instance = null;
 
+    /** @var array<string, true> project roots that already have an autoloader */
+    private static array $autoloaded = [];
+
     private ?AIEngine $engine = null;
 
     private ?Kernel $kernel = null;
@@ -40,6 +43,8 @@ class Application
     public function __construct(private readonly string $basePath)
     {
         self::loadHelpers();
+
+        $this->autoloadProjectClasses();
 
         $this->loadEnvironment();
 
@@ -91,6 +96,46 @@ class Application
     public static function forget(): void
     {
         self::$instance = null;
+    }
+
+    /**
+     * Make the project's own App\ classes loadable.
+     *
+     * A Vigen project's composer.json carries no "autoload" section, so nothing
+     * ever maps App\ to app/ - and Composer cannot map a namespace it was never
+     * told about, however many times dump-autoload runs. The failure does not
+     * look like a missing file: AuthController.php sits exactly where it
+     * belongs, class_exists() simply returns false, and the Router reports
+     * "A route points at controller [App\Http\Controllers\AuthController],
+     * which does not exist" for every route in the project.
+     *
+     * Registering PSR-4 at boot rather than publishing an autoload block means
+     * existing projects start working on `composer update` alone - no
+     * dump-autoload step, and nothing to re-scaffold.
+     */
+    private function autoloadProjectClasses(): void
+    {
+        $basePath = rtrim($this->basePath, '/\\');
+
+        if (isset(self::$autoloaded[$basePath])) {
+            return;
+        }
+
+        self::$autoloaded[$basePath] = true;
+
+        spl_autoload_register(static function (string $class) use ($basePath): void {
+            if (! str_starts_with($class, 'App\\')) {
+                return;
+            }
+
+            // PSR-4: App\Http\Controllers\AuthController
+            //      -> <project>/app/Http/Controllers/AuthController.php
+            $file = $basePath . '/app/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+
+            if (is_file($file)) {
+                require_once $file;
+            }
+        });
     }
 
     /**

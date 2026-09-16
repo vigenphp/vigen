@@ -148,7 +148,21 @@ class Connection
 
         try {
             $result = $callback($this);
-            $pdo->commit();
+
+            // MySQL commits implicitly before every DDL statement, so a
+            // migration whose body runs CREATE TABLE has already ended this
+            // transaction by the time we get here. Asking PDO to commit a
+            // transaction that is gone throws "There is no active transaction"
+            // - after the migration itself had in fact succeeded. That was
+            // every migration on MySQL reporting FAILED while leaving the
+            // table correctly created and unrecorded.
+            //
+            // The catch below has always checked inTransaction() before
+            // rolling back; the success path has to check before committing
+            // for the same reason.
+            if ($pdo->inTransaction()) {
+                $pdo->commit();
+            }
 
             return $result;
         } catch (Throwable $e) {

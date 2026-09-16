@@ -54,7 +54,41 @@ class Request
             }
         }
 
-        return new self($method, $path, $_GET, $body, $headers, [], $_FILES);
+        return new self(
+            self::spoofedMethod($method, $body),
+            $path,
+            $_GET,
+            $body,
+            $headers,
+            [],
+            $_FILES
+        );
+    }
+
+    /**
+     * Honour a _method field in a POST body.
+     *
+     * An HTML form can only send GET or POST, so the only way a generated edit
+     * or delete form can reach a put()/delete() route is by posting a hidden
+     * _method field - which is exactly what generated views write. Without
+     * this, every one of those forms 405s.
+     *
+     * Only POST is rewritten, so a link or an <img> carrying ?_method=DELETE
+     * cannot turn a safe request into a destructive one. The Kernel still
+     * verifies the CSRF token afterwards, because the rewritten method is what
+     * it sees.
+     *
+     * @param array<string, mixed> $body
+     */
+    private static function spoofedMethod(string $method, array $body): string
+    {
+        if ($method !== 'POST') {
+            return $method;
+        }
+
+        $spoofed = strtoupper((string) ($body['_method'] ?? ''));
+
+        return in_array($spoofed, ['PUT', 'PATCH', 'DELETE'], true) ? $spoofed : $method;
     }
 
     /**
@@ -75,6 +109,19 @@ class Request
     public function query(string $key, mixed $default = null): mixed
     {
         return $this->dig($this->query, $key) ?? $default;
+    }
+
+    /**
+     * A value from the request body only, ignoring the query string.
+     *
+     * input() searches both, which is right for reading a submitted form but
+     * wrong for telling a posted email apart from ?email=. Models reach for
+     * post() by reflex, so it exists rather than being a fatal "Call to
+     * undefined method".
+     */
+    public function post(string $key, mixed $default = null): mixed
+    {
+        return $this->dig($this->body, $key) ?? $default;
     }
 
     /**

@@ -36,6 +36,6 @@ class Application
 
     private function version(): string
     {
-        return '1.0.2';
+        return '1.0.4';
     }
 }

@@ -94,6 +94,8 @@ final class ApiReference
         The optional third argument is a list of middleware aliases. "auth" and
         "guest" are built in; more can be registered in config/app.php.
         An action may be [Controller::class, 'method'] or a closure.
+        A browser form cannot send PUT or DELETE, so a route declared with those
+        is reached by POSTing a hidden "_method" field - see VIEWS.
         TEXT;
     }
 
@@ -336,6 +338,19 @@ final class ApiReference
         Every POST form MUST include the hidden _token field above, or Vigen
         rejects the submission with a 419 page.
 
+        A form that edits or deletes an existing row is still a POST form, with
+        the real verb in a hidden _method field. Without it the put()/delete()
+        route it targets can never be reached from a browser:
+
+            <form method="POST" action="/users/<?= e($user->id) ?>">
+                <input type="hidden" name="_token" value="<?= e(Vigen\Http\Session::token()) ?>">
+                <input type="hidden" name="_method" value="PUT">
+                ...
+            </form>
+
+        Allowed _method values are PUT, PATCH and DELETE. It is honoured only on
+        a POST, so never put it on a link.
+
         For validation errors and old input:
             View::error('email')     first error for that field, or null
             View::errors()           all errors, keyed by field
@@ -349,9 +364,9 @@ final class ApiReference
         SUPPORT CLASSES
 
         Vigen\Http\Request
-          input($key, $default)  all()  only([...])  has($key)  query($key)
-          method()  path()  isMethod('post')  header($name)  validate([...])
-          user()  expectsJson()
+          input($key, $default)  post($key, $default)  all()  only([...])
+          has($key)  query($key)  method()  path()  isMethod('post')
+          header($name)  validate([...])  user()  expectsJson()
 
         Vigen\Http\Response
           Response::html($body, $status)  Response::json($data, $status)

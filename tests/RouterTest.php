@@ -278,6 +278,59 @@ final class RouterTest extends TestCase
         ];
     }
 
+    /**
+     * A literal segment must beat a {placeholder}, in either registration
+     * order.
+     *
+     * Generated route files put '/users/{id}' before '/users/create' - the
+     * natural reading order - and first-match-wins then sent GET /users/create
+     * to show(int $id) with the string "create": a TypeError, under strict
+     * types, on a route that had been declared perfectly correctly.
+     */
+    public function testALiteralSegmentBeatsARouteParameter(): void
+    {
+        $this->router->get('/users/{id}', static fn (string $id): string => "show {$id}");
+        $this->router->get('/users/create', static fn (): string => 'create form');
+
+        self::assertSame('create form', $this->dispatch('GET', '/users/create')->body());
+        self::assertSame('show 7', $this->dispatch('GET', '/users/7')->body());
+    }
+
+    public function testTheParameterStillWinsWhenNothingElseMatches(): void
+    {
+        $this->router->get('/users/create', static fn (): string => 'create form');
+        $this->router->get('/users/{id}', static fn (string $id): string => "show {$id}");
+
+        self::assertSame('show 7', $this->dispatch('GET', '/users/7')->body());
+        self::assertSame('create form', $this->dispatch('GET', '/users/create')->body());
+    }
+
+    /**
+     * Specificity is decided per segment, at the first point of difference -
+     * not by counting placeholders, which would pick the wrong route here:
+     * both have two, and the tie is broken by the third segment.
+     */
+    public function testSpecificityIsDecidedAtTheFirstDifferingSegment(): void
+    {
+        $this->router->get('/users/{id}/{action}', static fn (string $id, string $action): string => "{$action} {$id}");
+        $this->router->get('/users/{id}/edit', static fn (string $id): string => "edit {$id}");
+
+        self::assertSame('edit 7', $this->dispatch('GET', '/users/7/edit')->body());
+        self::assertSame('show 7', $this->dispatch('GET', '/users/7/show')->body());
+    }
+
+    /**
+     * Two routes that match equally well are separated by registration order,
+     * as they always were.
+     */
+    public function testEquallySpecificRoutesKeepRegistrationOrder(): void
+    {
+        $this->router->get('/users/{id}', static fn (string $id): string => "first {$id}");
+        $this->router->get('/users/{name}', static fn (string $name): string => "second {$name}");
+
+        self::assertSame('first 7', $this->dispatch('GET', '/users/7')->body());
+    }
+
     private function dispatch(string $method, string $path): Response
     {
         return $this->router->dispatch(new Request($method, $path));

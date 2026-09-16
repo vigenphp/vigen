@@ -323,6 +323,34 @@ final class DatabaseTest extends TestCase
         self::assertSame(1, Account::count());
     }
 
+    /**
+     * MySQL commits implicitly before every DDL statement, so the transaction
+     * Migrator::runFile() opens around a migration is already finished by the
+     * time the wrapper tries to commit it. PDO answers that with "There is no
+     * active transaction", which made every migration on MySQL report FAILED
+     * even though the migration had run.
+     *
+     * SQLite's DDL is transactional so it cannot produce that on its own, so
+     * the implicit commit is simulated here by committing from inside the
+     * callback. When transaction() reaches its own commit, the connection is
+     * in exactly the state MySQL leaves it in - and the work must still count
+     * as done rather than be reported as a failure.
+     */
+    public function testATransactionTheDriverAlreadyCommittedIsNotAnError(): void
+    {
+        $this->connection->transaction(function (Connection $db): void {
+            $db->statement(
+                'insert into accounts (name, email, password) values (?, ?, ?)',
+                ['Ada', 'ada@example.com', 'x']
+            );
+
+            // What MySQL does for you, unasked, in front of a CREATE TABLE.
+            $db->pdo()->commit();
+        });
+
+        self::assertSame(1, Account::count());
+    }
+
     public function testHydrateDoesNotApplyFillableRules(): void
     {
         $account = Account::hydrate(['id' => 3, 'name' => 'Ada', 'password' => 'hash']);
