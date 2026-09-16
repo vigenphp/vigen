@@ -6,8 +6,9 @@
  * so you can run Vigen the same way you'd run `php artisan` in Laravel:
  *
  *   php vigen init
- *   php vigen chat "Create a user management system"
- *   php vigen serve
+ *   php vigen chat "Create a user management system"   # generate code
+ *   php vigen gui                                      # or chat in a browser
+ *   php vigen serve                                    # run your application
  *
  * It's your file now - feel free to customize it. Re-running
  * `composer update` will not overwrite it if it already exists.

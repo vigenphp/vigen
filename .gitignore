@@ -1,4 +1,8 @@
 /vendor/
 /.env
 /.phpunit.result.cache
+# PHPUnit 10+ writes a .phpunit.cache/ directory rather than the single
+# .phpunit.result.cache file the line above covers, so both are needed.
+/.phpunit.cache/
 .DS_Store
+composer.lock

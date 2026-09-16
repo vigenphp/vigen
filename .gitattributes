@@ -1,0 +1,10 @@
+# Keep the branding out of the Composer dist archive.
+#
+# vigen.png and vigen-banner.png are ~2.4 MB together and are referenced only by
+# README.md and docs/getting-started.md. export-ignore removes them from
+# `git archive`, which is what GitHub uses to build the zip Composer downloads
+# for a dist install - so without this every `composer require vigenphp/vigen`
+# would pull 2.4 MB of images that nothing in a consuming project ever renders.
+# They stay in the repository, so the README still shows them on GitHub.
+/vigen.png        export-ignore
+/vigen-banner.png export-ignore

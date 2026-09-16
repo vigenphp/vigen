@@ -42,6 +42,11 @@ class ClaudeProvider extends AbstractProvider
             $filtered[] = $message;
         }
 
+        // Anthropic has no JSON response mode, so structured output is
+        // enforced by the prompt and recovered by TaskPlan's tolerant parser.
+        // Consume the flag regardless, so it never reaches the request body.
+        $this->consumeJsonFlag($options);
+
         $payload = array_merge([
             'model' => $this->model,
             'max_tokens' => $options['max_tokens'] ?? 4096,

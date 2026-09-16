@@ -14,8 +14,8 @@ This plugin does exactly one thing: it publishes a `vigen` file into your projec
 
 ```bash
 php vigen init
-php vigen chat "..."
-php vigen serve
+php vigen chat "..."   # generate a feature
+php vigen serve        # run the application
 ```
 
 To skip the prompt in CI or non-interactive installs, pre-approve it:
@@ -30,10 +30,17 @@ To skip the prompt in CI or non-interactive installs, pre-approve it:
 }
 ```
 
-If the plugin doesn't run (declined, or `composer install --no-plugins`), the standard Composer binary still works:
+If the plugin doesn't run (declined, or `composer install --no-plugins`), invoke the framework directly - no `vendor/bin` proxy is registered for it (that name is reserved for the global installer's own `vigen` command, so the two never collide):
 
 ```bash
-vendor/bin/vigen init
+php vendor/vigenphp/vigen/bin/vigen init
+```
+
+or publish the root script yourself:
+
+```bash
+cp vendor/vigenphp/vigen/stubs/vigen ./vigen && chmod +x vigen
+php vigen init
 ```
 
 The root `vigen` file is only published once - it's never overwritten on `composer update`, so it's safe to customize.

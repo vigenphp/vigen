@@ -5,26 +5,37 @@ declare(strict_types=1);
 namespace Vigen\Composer;
 
 use Composer\Composer;
-use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
-use Composer\Script\Event;
-use Composer\Script\ScriptEvents;
 
 /**
- * On `composer require vigenphp/vigen` (and subsequent `composer update`),
- * this plugin publishes a `vigen` executable into the project root -
- * mirroring how Laravel's `artisan` sits at the project root, so the
- * developer runs `php vigen ...` instead of `vendor/bin/vigen ...`.
+ * On `composer require vigenphp/vigen` (and every subsequent Composer run
+ * in that project), this plugin publishes a `vigen` executable into the
+ * project root - mirroring how Laravel's `artisan` sits at the project
+ * root, so the developer runs `php vigen ...` instead of a `vendor/bin`
+ * proxy (this package deliberately registers no "bin" of its own, to
+ * avoid colliding with vigenphp/installer's global `vigen` command).
  *
  * It never overwrites a `vigen` file that already exists, so local
  * customizations are safe across updates.
+ *
+ * The publish happens directly in activate() rather than via a subscribed
+ * script event (post-install-cmd/post-update-cmd). Composer has a known
+ * "chicken and egg" limitation: a plugin installed for the first time in
+ * the same command that triggers post-install-cmd/post-update-cmd does
+ * not receive that event, because its listeners aren't registered until
+ * after the event has already been dispatched - so the very first
+ * `composer require vigenphp/vigen` would silently fail to publish
+ * anything, and the developer's next command (`php vigen init`) would
+ * find no `./vigen` to run. activate() has no such gap: Composer calls it
+ * as soon as the plugin's own package is installed, on every command,
+ * including the first.
  */
-class VigenPlugin implements PluginInterface, EventSubscriberInterface
+class VigenPlugin implements PluginInterface
 {
     public function activate(Composer $composer, IOInterface $io): void
     {
-        // No-op: all work happens in the subscribed script events below.
+        $this->publishRootScript($composer, $io);
     }
 
     public function deactivate(Composer $composer, IOInterface $io): void
@@ -35,22 +46,8 @@ class VigenPlugin implements PluginInterface, EventSubscriberInterface
     {
     }
 
-    /**
-     * @return array<string, string>
-     */
-    public static function getSubscribedEvents(): array
+    private function publishRootScript(Composer $composer, IOInterface $io): void
     {
-        return [
-            ScriptEvents::POST_INSTALL_CMD => 'publishRootScript',
-            ScriptEvents::POST_UPDATE_CMD => 'publishRootScript',
-        ];
-    }
-
-    public function publishRootScript(Event $event): void
-    {
-        $io = $event->getIO();
-        $composer = $event->getComposer();
-
         $vendorDir = $composer->getConfig()->get('vendor-dir');
         $projectRoot = dirname($vendorDir);
 

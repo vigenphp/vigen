@@ -31,15 +31,25 @@ class OpenAIProvider extends AbstractProvider
 
     public function complete(array $messages, array $options = []): array
     {
+        $wantsJson = $this->consumeJsonFlag($options);
+
+        $payload = array_merge([
+            'model' => $this->model,
+            'messages' => $messages,
+        ], $options);
+
+        // OpenAI's native JSON mode. Requires the prompt to mention JSON,
+        // which AIEngine's planner prompt does.
+        if ($wantsJson) {
+            $payload['response_format'] = ['type' => 'json_object'];
+        }
+
         $response = $this->http->post('chat/completions', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->apiKey(),
                 'Content-Type' => 'application/json',
             ],
-            'json' => array_merge([
-                'model' => $this->model,
-                'messages' => $messages,
-            ], $options),
+            'json' => $payload,
         ]);
 
         return json_decode((string) $response->getBody(), true) ?? [];

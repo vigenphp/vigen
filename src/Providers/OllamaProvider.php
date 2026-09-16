@@ -31,13 +31,33 @@ class OllamaProvider extends AbstractProvider
 
     public function complete(array $messages, array $options = []): array
     {
+        $wantsJson = $this->consumeJsonFlag($options);
+
+        $payload = [
+            'model' => $this->model,
+            'messages' => $messages,
+            'stream' => false,
+        ];
+
+        // "format" is a top-level body field, NOT one of the sampling options
+        // below - putting it inside "options" is silently ignored by Ollama.
+        // It constrains the model to emit syntactically valid JSON, which is
+        // what makes small local models (e.g. qwen2.5-coder:14b) reliable
+        // enough for Vigen's plan contract.
+        if ($wantsJson) {
+            $payload['format'] = 'json';
+        }
+
+        // Ollama's "options" field must be a JSON object. An empty PHP array
+        // encodes as "[]", which Ollama rejects ("cannot unmarshal array into
+        // ... options of type map"), so omit it when empty and cast to an
+        // object otherwise to guarantee "{}" rather than "[]".
+        if ($options !== []) {
+            $payload['options'] = (object) $options;
+        }
+
         $response = $this->http->post('/api/chat', [
-            'json' => [
-                'model' => $this->model,
-                'messages' => $messages,
-                'stream' => false,
-                'options' => $options,
-            ],
+            'json' => $payload,
         ]);
 
         return json_decode((string) $response->getBody(), true) ?? [];

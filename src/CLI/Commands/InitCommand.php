@@ -92,7 +92,7 @@ class InitCommand extends Command
 
         if (strtolower($interface) === 'gui') {
             $output->writeln('Run this to open the built-in GUI chatbox:');
-            $output->writeln('  <comment>vigen serve</comment>');
+            $output->writeln('  <comment>vigen gui</comment>');
         } else {
             $output->writeln('Start building by talking to your project:');
             $output->writeln('  <comment>vigen chat "Create a user management system"</comment>');

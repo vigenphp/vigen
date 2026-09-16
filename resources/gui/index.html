@@ -7,10 +7,16 @@
   body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; color: #1a1a1a; }
   header { font-weight: 700; letter-spacing: 0.04em; margin-bottom: 16px; }
   #log { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-height: 320px; }
-  .step { color: #16a34a; margin: 2px 0; }
-  form { display: flex; gap: 8px; margin-top: 16px; }
-  input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+  #log div { margin: 2px 0; }
+  .step { color: #16a34a; }
+  .muted { color: #6b7280; }
+  .error { color: #dc2626; }
+  .summary { color: #374151; font-style: italic; margin-bottom: 8px; }
+  .prompt { margin-top: 12px; }
+  form { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+  input[type=text] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
   button { padding: 10px 16px; border: none; border-radius: 6px; background: #111; color: #fff; cursor: pointer; }
+  label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -18,35 +24,77 @@
   <div id="log"></div>
   <form id="chat-form">
     <input id="prompt" type="text" placeholder="Ask Vigen anything..." autocomplete="off" required>
+    <label><input id="dry-run" type="checkbox"> Dry run</label>
     <button type="submit">Send</button>
   </form>
 
   <script>
     const form = document.getElementById('chat-form');
     const input = document.getElementById('prompt');
+    const dryRunInput = document.getElementById('dry-run');
     const log = document.getElementById('log');
+
+    // Every value below ultimately comes from a language model, so it is
+    // added as text nodes rather than interpolated into innerHTML.
+    function line(text, className) {
+      const div = document.createElement('div');
+      if (className) div.className = className;
+      div.textContent = text;
+      log.appendChild(div);
+      return div;
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const prompt = input.value.trim();
       if (!prompt) return;
 
-      log.innerHTML += `<div><strong>${prompt}</strong></div>`;
+      const dryRun = dryRunInput.checked;
+
+      line(prompt, 'prompt');
       input.value = '';
 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, dry_run: dryRun }),
       });
       const result = await response.json();
 
-      for (const change of result.changes) {
-        log.innerHTML += `<div class="step">✓ ${change.path}</div>`;
+      if (result.summary) {
+        line(result.summary, 'summary');
       }
-      log.innerHTML += result.success
-        ? '<div class="step">✓ Validation passed</div>'
-        : '<div style="color:#dc2626">✗ Validation failed</div>';
+
+      // During a dry run nothing is written, so the planned changes are the
+      // only meaningful list; otherwise report what actually landed on disk.
+      if (result.dry_run) {
+        for (const change of result.changes) {
+          line(`would ${change.action}  ${change.path}`, 'muted');
+        }
+      } else {
+        for (const write of result.writes) {
+          const detail = write.message ? `  (${write.message})` : '';
+          const failed = write.status === 'rejected' || write.status === 'failed';
+          line(`${write.status}  ${write.path}${detail}`, failed ? 'error' : 'step');
+        }
+      }
+
+      // The engine explains itself when it produced nothing, instead of
+      // looking like a silent success.
+      for (const problem of result.problems || []) {
+        line(`- ${problem}`, 'error');
+      }
+
+      for (const error of result.errors) {
+        line(`- ${error}`, 'error');
+      }
+
+      if (result.success) {
+        line(result.dry_run ? '✓ Dry run complete' : '✓ Done', 'step');
+      } else {
+        line('✗ Failed', 'error');
+      }
+
       log.scrollTop = log.scrollHeight;
     });
   </script>

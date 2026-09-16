@@ -31,6 +31,11 @@ class GeminiProvider extends AbstractProvider
 
     public function complete(array $messages, array $options = []): array
     {
+        // Gemini has no JSON response mode here, so structured output is
+        // enforced by the prompt and recovered by TaskPlan's tolerant parser.
+        // Consume the flag regardless, so it never reaches the request body.
+        $this->consumeJsonFlag($options);
+
         $contents = array_map(
             static fn (array $m) => [
                 'role' => $m['role'] === 'assistant' ? 'model' : 'user',

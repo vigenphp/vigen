@@ -19,6 +19,17 @@ class Config
         $this->load();
     }
 
+    /**
+     * Re-read config/*.php from disk. Needed after a config file is published
+     * mid-process - a CLI command that scaffolds config/database.php would
+     * otherwise read an empty repository for the rest of the run.
+     */
+    public function reload(): void
+    {
+        $this->items = [];
+        $this->load();
+    }
+
     public function get(string $key, mixed $default = null): mixed
     {
         $value = $this->items;
