@@ -266,6 +266,10 @@ class AIEngine
             - Every file you reference must be included in this same response.
               If a controller calls View::render('auth.login'), then
               resources/views/auth/login.php must be one of the files.
+            - A model is useless without its table. If you create a model, or
+              add a column to one, include the migration that creates or
+              alters that table in this same response - the model alone
+              leaves every query failing with "no such table".
             - If the request requires no file changes, return "files": [].
             PROMPT;
 

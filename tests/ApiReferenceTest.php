@@ -120,6 +120,22 @@ final class ApiReferenceTest extends TestCase
     }
 
     /**
+     * A model without its migration is an app with no tables: `vigen migrate`
+     * has nothing to run, and the first query the user makes dies with "no
+     * such table". Unlike a controller's view reference, the model does not
+     * mention the migration anywhere, so no "every referenced file must be
+     * included" rule can catch it - the pairing has to be stated outright.
+     */
+    public function testItRequiresAMigrationForEveryModel(): void
+    {
+        $reference = ApiReference::forPrompt();
+
+        self::assertStringContainsString('EVERY MODEL NEEDS A TABLE', $reference);
+        self::assertStringContainsString('create_<table>_table.php', $reference);
+        self::assertStringContainsString('ALTER TABLE', $reference);
+    }
+
+    /**
      * A POST that omits the CSRF field is rejected with a 419, so a generated
      * form without it is broken on first submit.
      */

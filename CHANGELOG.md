@@ -4,6 +4,12 @@ All notable changes to Vigen will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-17
+
+### Fixed
+
+- **Models were generated with no migration, so the tables never existed.** `ApiReference` documented the migration *file shape* but nothing said *when* one is required - and unlike a controller's `View::render()` reference, a model never mentions its migration anywhere, so the existing "every file you reference must be included in this same response" rule could not catch it. `vigen chat "Create a user management system"` wrote the model, both controllers, the routes and all five views, and no migration at all: `php vigen migrate` had nothing to run, and the first query failed with "no such table". `ApiReference::migrationRule()` now states the pairing the way the view/route rule already does - creating a model, or adding a column to one, requires its `CREATE TABLE` / `ALTER TABLE` migration in the same response - and the planner's own rules list repeats it in brief.
+
 ## [1.0.0] - 2026-09-16
 
 ### Added

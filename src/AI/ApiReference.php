@@ -56,6 +56,8 @@ final class ApiReference
             . "\n\n"
             . self::migrations($driver)
             . "\n\n"
+            . self::migrationRule()
+            . "\n\n"
             . self::views()
             . "\n\n"
             . self::support()
@@ -263,6 +265,45 @@ final class ApiReference
         the column types above - do not use another database's syntax. The
         auto-increment primary key shown above is the one that differs most;
         taking it from another database is a syntax error here.
+        TEXT;
+    }
+
+    /**
+     * The rule that gives a model a table to read and write.
+     *
+     * The migration section above says how to *write* a migration; nothing
+     * said *when*, and a model does not reference its migration the way a
+     * controller references a view - so the "every file you reference must be
+     * in this response" rule cannot catch a missing one. The planner wrote
+     * models, controllers, routes and views and no migration at all, which
+     * leaves `php vigen migrate` with nothing to run and every query failing
+     * with "no such table" the moment the app is used. The pairing has to be
+     * stated outright, exactly as the view/route pairing above is.
+     */
+    public static function migrationRule(): string
+    {
+        return <<<'TEXT'
+        EVERY MODEL NEEDS A TABLE, AND ONLY A MIGRATION CREATES ONE
+
+        A model is a class in front of a table. Writing app/Models/User.php
+        does not create the users table, so whenever your response creates a
+        model - or adds a column to one - it MUST also include the migration
+        for that table, in the same response:
+
+            app/Models/User.php
+            database/migrations/2026_09_17_120000_create_users_table.php
+
+        - Name it YYYY_MM_DD_HHMMSS_create_<table>_table.php, timestamped
+          later than every migration already in the project.
+        - Its CREATE TABLE must carry every column the model's $fillable
+          lists, plus the primary key, and created_at / updated_at unless the
+          model sets $timestamps = false.
+        - A new column on an existing table gets its own migration using
+          ALTER TABLE. Never edit the original migration file.
+
+        `php vigen migrate` runs only the files in database/migrations. A
+        model shipped without one has no table, and every query against it
+        fails with "no such table".
         TEXT;
     }
 
