@@ -4,6 +4,12 @@ All notable changes to Vigen will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-17
+
+### Fixed
+
+- **`vigen migrate` failed on the first run against any empty database.** `Migrator::applied()` read the `migrations` bookkeeping table without making sure it existed - the `ensureRepository()` call lived only in `run()`, `runFile()` and `rollback()`. But `MigrateCommand::runPending()` asks `pending()` for its work list *before* it runs anything, and `pending()` is built on `applied()`, so `vigen migrate` on a fresh project died with `SQLSTATE[42S02]: Base table or view not found: Table 'vigen.migrations' doesn't exist` (or "no such table: migrations" on SQLite) before a single migration file could create it. `ensureRepository()` is now called from `applied()`, which every reader of that table - `pending`, `isApplied`, `migrate status`, `rollback` - goes through. This was the first command a new project runs, on every driver, and no test caught it because every existing `MigratorTest` case called `run()` first, creating the table before the read; two regression tests now cover a virgin database.
+
 ## [1.0.1] - 2026-09-17
 
 ### Fixed

@@ -115,6 +115,18 @@ class Migrator
      */
     public function applied(?int $limit = null): array
     {
+        // Ensuring here, rather than only in the callers, is what makes a
+        // brand-new database work at all. `vigen migrate` asks pending() for
+        // its work list *before* it runs anything, and pending() is built on
+        // this method - so with the ensure living only in run() and runFile(),
+        // the very first migrate against an empty database died on
+        // "Table 'vigen.migrations' doesn't exist" before any migration file
+        // had a chance to create the table. Every other reader of the table
+        // (pending, isApplied, `migrate status`, rollback) goes through here,
+        // so this one call covers them all. ensureRepository() is a no-op
+        // once the table exists.
+        $this->ensureRepository();
+
         $sql = sprintf(
             'select migration from %s order by id desc',
             $this->connection->quoteIdentifier(self::TABLE)

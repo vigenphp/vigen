@@ -159,6 +159,42 @@ final class MigratorTest extends TestCase
         self::assertSame([], $this->migrator()->run());
     }
 
+    /**
+     * The state a brand-new project is actually in: nothing has ever run, so
+     * the repository table does not exist yet.
+     *
+     * Every other test in this file calls run() before it touches pending()
+     * or applied() - and run() is what creates that table - so none of them
+     * ever exercised this path. That is why `vigen migrate` failed on its
+     * very first invocation against an empty database with "Table
+     * 'vigen.migrations' doesn't exist", which is the one command a new
+     * project runs first.
+     */
+    public function testPendingWorksBeforeAnythingHasEverRun(): void
+    {
+        $this->writeMigration('2026_01_01_000000_create_users_table.php', 'users');
+
+        self::assertSame(
+            ['2026_01_01_000000_create_users_table.php'],
+            $this->migrator()->pending()
+        );
+        self::assertSame([], $this->migrator()->applied());
+    }
+
+    /**
+     * `vigen migrate status` is what you run to see where you are, so it has
+     * to survive being the first command ever run against a fresh database.
+     */
+    public function testStatusReadsAFreshDatabaseWithoutError(): void
+    {
+        $this->writeMigration('2026_01_01_000000_create_users_table.php', 'users');
+
+        $migrator = $this->migrator();
+
+        self::assertTrue($migrator->repositoryExists());
+        self::assertFalse($migrator->isApplied('2026_01_01_000000_create_users_table.php'));
+    }
+
     private function migrator(): Migrator
     {
         return new Migrator($this->connection, $this->migrations);
